@@ -1,0 +1,17 @@
+{
+  "source": ["aws.lambda"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["lambda.amazonaws.com"],
+    "eventName": [
+      { "prefix": "UpdateFunctionCode" },
+      { "prefix": "PublishVersion" }
+    ],
+    "requestParameters": {
+      "functionName": [
+        "FUNCTION_NAME",
+        "arn:aws:lambda:REGION:ACCOUNT_ID:function:FUNCTION_NAME"
+      ]
+    }
+  }
+}
