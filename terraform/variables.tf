@@ -29,11 +29,11 @@ variable "eventbridge_rule_name" {
 
 variable "log_retention_days" {
   type        = number
-  description = "CloudWatch Logs retention"
+  description = "CloudWatch Logs retention (days)"
   default     = 30
 }
 
-# For optional rule filtering and IAM tightening (no secrets)
+# For optional rule filtering + IAM tightening
 variable "account_id" {
   type        = string
   description = "AWS Account ID (used to build ARNs if function_name is provided)"
@@ -46,7 +46,7 @@ variable "function_name" {
   default     = ""
 }
 
-# Optional: KMS for S3 bucket
+# Optional: KMS for S3 bucket encryption (leave null to skip)
 variable "kms_key_arn" {
   type        = string
   description = "KMS key ARN for S3 encryption (optional)"
