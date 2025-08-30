@@ -1,7 +1,7 @@
 variable "region" {
   type        = string
-  default     = "us-east-1"
   description = "AWS region"
+  default     = "us-east-1"
 }
 
 variable "backup_bucket" {
@@ -11,36 +11,44 @@ variable "backup_bucket" {
 
 variable "dest_prefix" {
   type        = string
-  default     = "lambda-code-backups"
   description = "S3 key prefix for backups"
+  default     = "lambda-code-backups"
 }
 
 variable "watcher_name" {
   type        = string
+  description = "Lambda function name for the watcher"
   default     = "lambda-code-watcher"
-  description = "Watcher Lambda function name"
+}
+
+variable "eventbridge_rule_name" {
+  type        = string
+  description = "EventBridge rule name"
+  default     = "lambda-code-watcher-code-updates"
 }
 
 variable "log_retention_days" {
   type        = number
+  description = "CloudWatch Logs retention"
   default     = 30
 }
 
-variable "target_function_arns" {
-  type        = list(string)
-  default     = []
-  description = "List of Lambda ARNs the watcher may read (lambda:GetFunction). Leave empty to allow none (update later)."
+# For optional rule filtering and IAM tightening (no secrets)
+variable "account_id" {
+  type        = string
+  description = "AWS Account ID (used to build ARNs if function_name is provided)"
+  default     = ""
 }
 
-variable "target_function_names" {
-  type        = list(string)
-  default     = []
-  description = "Optional: specific Lambda names for EventBridge filter (if you choose to filter)."
+variable "function_name" {
+  type        = string
+  description = "Target Lambda name to filter the EventBridge rule (leave empty to match ALL Lambdas)"
+  default     = ""
 }
 
-# Uncomment if using SSE-KMS on the bucket
-# variable "kms_key_arn" {
-#   type        = string
-#   default     = null
-#   description = "KMS key ARN for S3 encryption"
-# }
+# Optional: KMS for S3 bucket
+variable "kms_key_arn" {
+  type        = string
+  description = "KMS key ARN for S3 encryption (optional)"
+  default     = null
+}
