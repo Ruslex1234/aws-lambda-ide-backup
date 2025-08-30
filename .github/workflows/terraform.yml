@@ -1,28 +1,39 @@
-name: Terraform CI/CD
+name: Terraform (manual)
 
 on:
-  pull_request:
-    paths:
-      - "terraform/**"
-      - "src/lambda/code_watcher/**"
-      - ".github/workflows/terraform.yml"
-  push:
-    branches: [ "main" ]
-    paths:
-      - "terraform/**"
-      - "src/lambda/code_watcher/**"
-      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "tfvars env to use"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+      action:
+        description: "What to run"
+        required: true
+        default: plan
+        type: choice
+        options: [plan, apply, destroy]
 
 jobs:
   terraform:
+    # optional: gate prod via Environments in GitHub (Settings → Environments)
+    environment: ${{ github.event.inputs.environment }}
+
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
+      id-token: write   # OIDC to AWS
       contents: read
+
+    concurrency:
+      group: terraform-${{ github.event.inputs.environment }}
+      cancel-in-progress: false
 
     env:
       TF_IN_AUTOMATION: "true"
       AWS_REGION: "us-east-1"
+      TFVARS_FILE: terraform/envs/${{ github.event.inputs.environment }}.tfvars
 
     steps:
       - name: Checkout
@@ -33,8 +44,7 @@ jobs:
         with:
           terraform_version: 1.8.5
 
-      # Configure AWS creds via OIDC (recommended). Create an IAM role trust for your GitHub org/repo.
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
@@ -49,11 +59,16 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event.inputs.action == 'plan' }}
         working-directory: terraform
-        run: terraform plan -var-file="envs/dev.tfvars"
+        run: terraform plan -var-file="${{ env.TFVARS_FILE }}"
 
-      - name: Terraform Apply (main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.action == 'apply' }}
         working-directory: terraform
-        run: terraform apply -auto-approve -var-file="envs/dev.tfvars"
+        run: terraform apply -auto-approve -var-file="${{ env.TFVARS_FILE }}"
+
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        working-directory: terraform
+        run: terraform destroy -auto-approve -var-file="${{ env.TFVARS_FILE }}"
