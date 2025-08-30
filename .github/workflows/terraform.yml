@@ -3,37 +3,71 @@ name: Terraform (manual)
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "tfvars env to use"
-        required: true
-        default: dev
-        type: choice
-        options: [dev, prod]
       action:
         description: "What to run"
+        type: choice
         required: true
         default: plan
-        type: choice
         options: [plan, apply, destroy]
+      region:
+        description: "AWS region"
+        required: true
+        default: "us-east-1"
+      backup_bucket:
+        description: "S3 bucket for backups"
+        required: true
+      dest_prefix:
+        description: "S3 key prefix (e.g., lambda-code-backups)"
+        required: true
+        default: "lambda-code-backups"
+      watcher_name:
+        description: "Watcher Lambda name"
+        required: true
+        default: "lambda-code-watcher"
+      eventbridge_rule_name:
+        description: "EventBridge rule name"
+        required: true
+        default: "lambda-code-watcher-code-updates"
+      account_id:
+        description: "AWS Account ID (for filtering & IAM scoping)"
+        required: false
+      function_name:
+        description: "Filter to one Lambda (optional). Leave blank to match all."
+        required: false
+      log_retention_days:
+        description: "CloudWatch Logs retention"
+        required: true
+        default: "30"
+      kms_key_arn:
+        description: "KMS key ARN for S3 (optional)"
+        required: false
 
 jobs:
   terraform:
-    # optional: gate prod via Environments in GitHub (Settings → Environments)
-    environment: ${{ github.event.inputs.environment }}
-
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # OIDC to AWS
+      id-token: write
       contents: read
 
+    # Prevent overlapping applies
     concurrency:
-      group: terraform-${{ github.event.inputs.environment }}
+      group: terraform-${{ github.event.inputs.watcher_name }}
       cancel-in-progress: false
 
     env:
       TF_IN_AUTOMATION: "true"
-      AWS_REGION: "us-east-1"
-      TFVARS_FILE: terraform/envs/${{ github.event.inputs.environment }}.tfvars
+      AWS_REGION: ${{ github.event.inputs.region }}
+
+      # Map inputs to TF vars (Terraform auto-reads TF_VAR_*):
+      TF_VAR_region:                ${{ github.event.inputs.region }}
+      TF_VAR_backup_bucket:         ${{ github.event.inputs.backup_bucket }}
+      TF_VAR_dest_prefix:           ${{ github.event.inputs.dest_prefix }}
+      TF_VAR_watcher_name:          ${{ github.event.inputs.watcher_name }}
+      TF_VAR_eventbridge_rule_name: ${{ github.event.inputs.eventbridge_rule_name }}
+      TF_VAR_account_id:            ${{ github.event.inputs.account_id }}
+      TF_VAR_function_name:         ${{ github.event.inputs.function_name }}
+      TF_VAR_log_retention_days:    ${{ github.event.inputs.log_retention_days }}
+      TF_VAR_kms_key_arn:           ${{ github.event.inputs.kms_key_arn }}
 
     steps:
       - name: Checkout
@@ -61,14 +95,14 @@ jobs:
       - name: Terraform Plan
         if: ${{ github.event.inputs.action == 'plan' }}
         working-directory: terraform
-        run: terraform plan -var-file="${{ env.TFVARS_FILE }}"
+        run: terraform plan
 
       - name: Terraform Apply
         if: ${{ github.event.inputs.action == 'apply' }}
         working-directory: terraform
-        run: terraform apply -auto-approve -var-file="${{ env.TFVARS_FILE }}"
+        run: terraform apply -auto-approve
 
       - name: Terraform Destroy
         if: ${{ github.event.inputs.action == 'destroy' }}
         working-directory: terraform
-        run: terraform destroy -auto-approve -var-file="${{ env.TFVARS_FILE }}"
+        run: terraform destroy -auto-approve
