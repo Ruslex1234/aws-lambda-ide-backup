@@ -292,7 +292,3 @@ Grant just enough for the Terraform in this repo (tighten later if desired):
 - You pay for **Lambda** runtime, **CloudWatch Logs**, and **S3** storage/requests (plus **KMS** if enabled).
 
 ---
-
-## License
-
-MIT (or your choice).
